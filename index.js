@@ -95,6 +95,7 @@ redisClient.ping().then(() => {
 const allowedOrigins = [
   "http://localhost:3001",
   "http://localhost:1420",
+    "https://ramus-front12.vercel.app",
   "http://tauri.localhost",
   "tauri://com.admin.tauri-app",
   "tauri://localhost",

@@ -16,6 +16,7 @@ function initializeSocket(server) {
         
         const allowedOrigins = [
           'http://localhost:3001',
+            "https://ramus-front12.vercel.app",
       "tauri://com.admin.tauri-app",
           'http://localhost:1420',
           "tauri://localhost",
