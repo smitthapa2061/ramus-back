@@ -1,4 +1,3 @@
-// Auto-generated during build - DO NOT EDIT
 module.exports = {
   "PORT": "3000",
   "NODE_ENV": "development",
