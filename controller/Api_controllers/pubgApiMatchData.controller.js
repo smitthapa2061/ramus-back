@@ -218,8 +218,8 @@ const userKeyToDbId = new Map();
 const lastMatchDataByUserMatch = {};
 const lastHashByUserMatch = {};
 
-const MIN_INTERVAL        = 1000;
-const MAX_INTERVAL        = 10000;
+const MIN_INTERVAL        = 2000;
+const MAX_INTERVAL        = 15000;
 const INITIAL_INTERVAL    = 2000;
 const NO_CHANGE_THRESHOLD = 1;
 

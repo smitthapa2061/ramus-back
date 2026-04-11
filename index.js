@@ -71,11 +71,29 @@ if (isProduction) {
 
 // --- CONNECT TO MONGODB ---
 mongoose.connect(config.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+    serverSelectionTimeoutMS: 15000,   // give Atlas more time (was 5000)
+    connectTimeoutMS: 20000,
+    socketTimeoutMS: 60000,
+    maxPoolSize: 10,
+    family: 4,
+    // REMOVE: useNewUrlParser, useUnifiedTopology (deprecated in Mongoose 6+)
+    // REMOVE: bufferMaxEntries (Mongoose 5.x only, causes issues in 6+)
+    // REMOVE: bufferMaxEntries: 0  ← this is your silent killer
+    heartbeatFrequencyMS: 10000,       // check connection health every 10s
+    retryWrites: true,
 })
-  .then(() => console.log('✅ MongoDB connected (new hosted)'))
+  .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
+
+
+
+mongoose.connection.on('reconnected', () => {
+  console.log('🔁 MongoDB reconnected');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error:', err.message);
+});
 
 // --- CONNECT TO REDIS ---
 const { Redis } = require('@upstash/redis');
@@ -184,7 +202,14 @@ const sessionStore = MongoStore.create({
   collectionName: 'sessions',
   ttl: 7 * 24 * 60 * 60, // 7 days in seconds
   autoRemove: 'interval',
-  autoRemoveInterval: 60 // Remove expired sessions every hour
+  autoRemoveInterval: 60, // Remove expired sessions every hour
+  clientOptions: {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    family: 4
+  }
 });
 
 // Enhanced session configuration for iOS compatibility
@@ -196,13 +221,13 @@ const sessionMiddleware = session({
   store: sessionStore,
   proxy: true, // Trust the reverse proxy (important for HTTPS)
   cookie: {
-    secure: true, // Only secure in true production, not local IP
-    httpOnly: true,
-    sameSite: 'none', // 'none' only for true production
+    secure: false, // Only secure in true production, not local IP
+    httpOnly: false,
+    sameSite: 'lax', // 'none' only for true production
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     domain: undefined, // Don't set domain for cross-site cookies between different TLDs
     path: '/',
-    partitioned: true // Only partitioned in true production
+    partitioned: false // Only partitioned in true production
   },
   rolling: true // Reset the expiration on every request
 });

@@ -14,7 +14,7 @@ const createUser = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to create user" });
     }
 
-    const existingUser = await User.findOne({ email });
+const existingUser = await User.findOne({ email }).maxTimeMS(5000);
     if (existingUser) return res.status(400).json({ message: "User already exists" });
 
     const user = new User({ username, email, password, isAdmin: !!isAdmin });
@@ -45,7 +45,7 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).maxTimeMS(5000);
     if (!user) return res.status(400).json({ message: "User not found" });
 
     const isMatch = await user.matchPassword(password);
@@ -75,7 +75,8 @@ const loginUser = async (req, res) => {
       });
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('MongoDB/User Error in loginUser:', err.message, err.stack);
+    res.status(500).json({ message: 'Database error: ' + err.message });
   }
 };
 
@@ -91,7 +92,7 @@ const logoutUser = (req, res) => {
 // --- UPDATE USER ---
 const updateUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).maxTimeMS(5000);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
@@ -102,7 +103,7 @@ const updateUser = async (req, res) => {
 // --- DELETE USER ---
 const deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findByIdAndDelete(req.params.id).maxTimeMS(5000);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json({ message: "User deleted successfully" });
   } catch (err) {
@@ -131,7 +132,7 @@ const getCurrentUser = async (req, res) => {
     return res.status(401).json({ message: "Not logged in" });
   }
 
-  const user = await User.findById(req.session.userId).select("-password");
+  const user = await User.findById(req.session.userId).select("-password").maxTimeMS(5000);
   if (!user) {
     console.log('❌ User not found in database');
     return res.status(404).json({ message: "User not found" });
