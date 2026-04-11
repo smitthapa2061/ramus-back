@@ -7,7 +7,6 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 
 
-
 // Load configuration
 const config = require('./config');
 
@@ -69,29 +68,7 @@ if (isProduction) {
   });
 }
 
-// --- CONNECT TO MONGODB ---
-mongoose.connect(config.MONGODB_URI, {
-    serverSelectionTimeoutMS: 15000,
-    connectTimeoutMS: 20000,
-    socketTimeoutMS: 60000,
-    bufferTimeoutMS: 30000,
-    maxPoolSize: 10,
-    family: 4,
-    heartbeatFrequencyMS: 10000,
-    retryWrites: true,
-})
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
 
-
-
-mongoose.connection.on('reconnected', () => {
-  console.log('🔁 MongoDB reconnected');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB connection error:', err.message);
-});
 
 // --- CONNECT TO REDIS ---
 const { Redis } = require('@upstash/redis');
@@ -656,41 +633,40 @@ app.get('/', (req, res) => {
   res.send('Hello World from Express!');
 });
 
-// --- SOCKET.IO ---
-const server = http.createServer(app);
-const io = initializeSocket(server);
+async function startServer() {
+  try {
 
-// --- DEFER STARTUP UNTIL DB READY ---
-mongoose.connection.once('open', () => {
-  console.log('🚀 Starting live match updater now that DB is ready');
-  const { startLiveMatchUpdater } = require('./controller/Api_controllers/pubgApiMatchData.controller.js');
-  startLiveMatchUpdater();
-});
+    if (!config.MONGODB_URI) {
+      console.log("❌ MongoDB URI missing");
+      process.exit(1);
+    }
 
-// Wrap session middleware for socket.io
-const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
-io.use(wrap(sessionMiddleware));
+    await mongoose.connect(config.MONGODB_URI || "mongodb+srv://DEMON:1RpRCPfA2TIjcXXL@cluster0.znuinux.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0", {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      family: 4
+    });
 
-io.on('connection', (socket) => {
-  console.log('WebSocket client connected:', socket.id);
+    console.log("✅ MongoDB connected");
 
-  // Join user-specific room if user is authenticated
-  if (socket.request.session?.userId) {
-    socket.join(socket.request.session.userId);
-    console.log(`User ${socket.request.session.userId} joined their room`);
+    const server = http.createServer(app);
+    const io = initializeSocket(server);
+
+    console.log('🚀 Starting live match updater now that DB is ready');
+
+    const { startLiveMatchUpdater } = require('./controller/Api_controllers/pubgApiMatchData.controller.js');
+    startLiveMatchUpdater();
+
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Server running on ${port}`);
+    });
+
+  } catch (err) {
+    console.log("❌ MongoDB connection error", err);
+    process.exit(1);
   }
+}
 
-  socket.on('message', (msg) => {
-    console.log('Received message:', msg);
-    socket.emit('message', `Server received: ${msg}`);
-  });
-
-  
-});
-
-// --- START SERVER ---
-server.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Server running at http://0.0.0.0:${port}`);
-  console.log(`📊 Health check: http://localhost:${port}/api/health`);
-});
+startServer();
 
